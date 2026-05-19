@@ -7,9 +7,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
-  images: {
-    remotePatterns: [],
-  },
+  staticPageGenerationTimeout: 10,
 };
 
 export default nextConfig;

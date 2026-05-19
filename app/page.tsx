@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { query } from "@/lib/db";
 import type { Project } from "@/lib/types";
 

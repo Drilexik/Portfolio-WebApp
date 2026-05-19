@@ -8,6 +8,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV BUILDING=true
 ENV POSTGRES_HOST=localhost POSTGRES_PORT=5432 POSTGRES_DB=drilex
 ENV POSTGRES_USER=drilex POSTGRES_PASSWORD=build_placeholder ADMIN_PASSWORD=build_placeholder
 RUN npm run build
@@ -24,7 +25,6 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static     ./.next/static
 COPY --from=builder /app/public           ./public
 
-# Create uploads dir with correct ownership
 RUN mkdir -p ./public/uploads && chown -R nextjs:nodejs ./public/uploads && \
     chown -R nextjs:nodejs /app
 
