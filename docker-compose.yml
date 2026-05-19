@@ -1,22 +1,14 @@
-version: "3.9"
-
-# ─── Networks ────────────────────────────────────────────────────────────────
 networks:
   drilex_internal:
     driver: bridge
 
-# ─── Volumes ─────────────────────────────────────────────────────────────────
-# Named volumes ensure data survives container restarts and re-deployments.
 volumes:
   pg_data:
     driver: local
   uploads:
     driver: local
 
-# ─── Services ────────────────────────────────────────────────────────────────
 services:
-
-  # ── PostgreSQL database ──────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -35,7 +27,6 @@ services:
       retries: 5
       start_period: 30s
 
-  # ── Next.js application ──────────────────────────────────────────────────
   app:
     build:
       context: .
@@ -46,26 +37,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Map host PORT → container PORT.
-    # Both resolve from the .env file automatically.
     ports:
       - "${PORT:-5000}:${PORT:-5000}"
     environment:
-      # Runtime port (must match EXPOSE / CMD in Dockerfile)
       PORT:              ${PORT:-5000}
-
-      # Database — resolved against the 'db' service on the internal network
       POSTGRES_HOST:     db
       POSTGRES_PORT:     ${POSTGRES_PORT:-5432}
       POSTGRES_DB:       ${POSTGRES_DB}
       POSTGRES_USER:     ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
-      # Admin panel
       ADMIN_PASSWORD:    ${ADMIN_PASSWORD}
-
       NODE_ENV:          production
     volumes:
-      # Mount the named 'uploads' volume to the same path the app writes to.
-      # Uploaded project images will survive container recreation.
       - uploads:/app/public/uploads

@@ -1,316 +1,189 @@
 "use client";
 
 import { useActionState, useRef, useEffect, useState } from "react";
-import {
-  createProjectAction,
-  deleteProjectAction,
-  logoutAction,
-  type ProjectState,
-} from "@/app/actions";
+import { createProjectAction, deleteProjectAction, logoutAction, type ProjectState } from "@/app/actions";
 import type { Project } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 const initialState: ProjectState = {};
 
-interface Props {
-  projects: Project[];
-}
-
-export default function AdminDashboard({ projects }: Props) {
-  const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  const [state, formAction, isPending] = useActionState(
-    createProjectAction,
-    initialState
-  );
+export default function AdminDashboard({ projects }: { projects: Project[] }) {
+  const router   = useRouter();
+  const formRef  = useRef<HTMLFormElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [state, formAction, isPending] = useActionState(createProjectAction, initialState);
 
   useEffect(() => {
     if (state.success) {
       formRef.current?.reset();
-      setImagePreview(null);
+      setPreview(null);
       router.refresh();
     }
   }, [state.success, router]);
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
-    } else {
-      setImagePreview(null);
-    }
-  }
-
   async function handleDelete(id: number, title: string) {
-    if (!confirm(`Delete project "${title}"?`)) return;
+    if (!confirm(`Delete "${title}"?`)) return;
     await deleteProjectAction(id);
     router.refresh();
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4rem" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+    <div className="min-h-screen bg-[#07070a] text-[#f0f0ff]">
+
+      {/* ── Nav ── */}
+      <nav className="border-b border-[#1e1e2a] bg-[#07070a]/90 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-8 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-mono text-sm">
+            <span className="text-[#9090b0]">drilex<span className="text-[#7c3aed]">.cz</span></span>
+            <span className="text-[#44445a]">/</span>
+            <span className="text-[#7c3aed]">admin</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="/" className="font-mono text-xs text-[#44445a] hover:text-[#9090b0] transition-colors">
+              ← site
+            </a>
+            <form action={logoutAction}>
+              <button type="submit" className="btn-primary py-1.5 px-4 text-[0.65rem]">
+                <span>Sign out</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-5xl mx-auto px-8 py-12 flex flex-col gap-14">
+
+        {/* ── Header ── */}
         <div>
-          <p className="section-label">// admin panel</p>
-          <h1 style={{ fontSize: "2rem", fontWeight: 700 }}>
+          <div className="inline-flex items-center gap-2 font-mono text-[0.65rem] tracking-[0.18em] uppercase text-[#7c3aed] mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#7c3aed]" />
+            admin panel
+          </div>
+          <h1 className="font-extrabold text-4xl tracking-tight">
             Project Manager
           </h1>
-          <p style={{ marginTop: "0.4rem", fontSize: "0.9rem" }}>
-            {projects.length} project{projects.length !== 1 ? "s" : ""} published
+          <p className="text-[#9090b0] text-sm mt-2 font-mono">
+            {projects.length} project{projects.length !== 1 ? "s" : ""} in database
           </p>
         </div>
-        <form action={logoutAction}>
-          <button type="submit" className="btn" style={{ marginTop: "0.25rem" }}>
-            Sign out
-          </button>
-        </form>
-      </div>
 
-      {/* ── Add project form ── */}
-      <div>
-        <p className="section-label">// add new project</p>
-        <form
-          ref={formRef}
-          action={formAction}
-          encType="multipart/form-data"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "1.5rem",
-            maxWidth: 760,
-          }}
-        >
-          {/* Title */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label htmlFor="title">Project title</label>
-            <input
-              id="title"
-              name="title"
-              type="text"
-              placeholder="My Awesome Project"
-              required
-            />
-          </div>
+        {/* ── Add project ── */}
+        <div>
+          <h2 className="font-bold text-lg mb-6 flex items-center gap-3">
+            <span className="text-[#7c3aed]">+</span> Add new project
+          </h2>
 
-          {/* Redirect URL */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label htmlFor="redirect_url">Redirect URL</label>
-            <input
-              id="redirect_url"
-              name="redirect_url"
-              type="url"
-              placeholder="https://example.com"
-              required
-            />
-          </div>
+          <form ref={formRef} action={formAction} encType="multipart/form-data"
+            className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-2xl">
 
-          {/* Image upload */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label htmlFor="image">Project image (optional)</label>
-            <input
-              id="image"
-              name="image"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={handleImageChange}
-              style={{ padding: "0.5rem 0.875rem" }}
-            />
-            {imagePreview && (
-              <div style={{ marginTop: "0.75rem" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  style={{
-                    width: 240,
-                    aspectRatio: "16/9",
-                    objectFit: "cover",
-                    border: "1px solid var(--border)",
-                    display: "block",
-                  }}
-                />
+            <div className="md:col-span-2">
+              <label className="block font-mono text-[0.65rem] tracking-widest uppercase text-[#9090b0] mb-2">
+                Project title
+              </label>
+              <input name="title" type="text" placeholder="My Awesome Project" required
+                className="w-full bg-[#111118] border border-[#1e1e2a] text-[#f0f0ff] font-mono text-sm px-4 py-3 outline-none focus:border-[#7c3aed] transition-colors placeholder:text-[#44445a]"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block font-mono text-[0.65rem] tracking-widest uppercase text-[#9090b0] mb-2">
+                Redirect URL
+              </label>
+              <input name="redirect_url" type="url" placeholder="https://example.com" required
+                className="w-full bg-[#111118] border border-[#1e1e2a] text-[#f0f0ff] font-mono text-sm px-4 py-3 outline-none focus:border-[#7c3aed] transition-colors placeholder:text-[#44445a]"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block font-mono text-[0.65rem] tracking-widest uppercase text-[#9090b0] mb-2">
+                Project image (optional — max 8 MB)
+              </label>
+              <input
+                name="image"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  setPreview(file ? URL.createObjectURL(file) : null);
+                }}
+                className="w-full bg-[#111118] border border-[#1e1e2a] text-[#9090b0] font-mono text-xs px-4 py-3 outline-none focus:border-[#7c3aed] transition-colors file:mr-4 file:py-1 file:px-3 file:border file:border-[#2d2d40] file:bg-[#0f0f14] file:text-[#9090b0] file:font-mono file:text-xs file:cursor-pointer"
+              />
+              {preview && (
+                <div className="mt-3 border border-[#1e1e2a]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={preview} alt="Preview" className="w-48 aspect-video object-cover block" />
+                </div>
+              )}
+            </div>
+
+            {state.error && (
+              <div className="md:col-span-2 border-l-2 border-red-500 pl-3 font-mono text-xs text-red-400">
+                {state.error}
               </div>
             )}
-          </div>
-
-          {/* Feedback */}
-          {state.error && (
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.8rem",
-                color: "#f87171",
-                borderLeft: "2px solid #f87171",
-                paddingLeft: "0.75rem",
-              }}
-            >
-              {state.error}
-            </div>
-          )}
-
-          {state.success && (
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.8rem",
-                color: "#4ade80",
-                borderLeft: "2px solid #4ade80",
-                paddingLeft: "0.75rem",
-              }}
-            >
-              Project added successfully.
-            </div>
-          )}
-
-          {/* Submit */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <button
-              type="submit"
-              className="btn btn-solid"
-              disabled={isPending}
-            >
-              {isPending ? "Saving…" : "Add project →"}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* ── Existing projects ── */}
-      <div>
-        <p className="section-label">// existing projects</p>
-        {projects.length === 0 ? (
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.85rem",
-              color: "var(--text-dim)",
-              paddingTop: "1rem",
-            }}
-          >
-            No projects yet.
-          </p>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 1,
-              background: "var(--border)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            {projects.map((p) => (
-              <div
-                key={p.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "auto 1fr auto auto",
-                  alignItems: "center",
-                  gap: "1.25rem",
-                  padding: "1rem 1.25rem",
-                  background: "var(--bg)",
-                }}
-              >
-                {/* Thumbnail */}
-                {p.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={p.image_url}
-                    alt={p.title}
-                    style={{
-                      width: 64,
-                      height: 40,
-                      objectFit: "cover",
-                      border: "1px solid var(--border)",
-                      display: "block",
-                      flexShrink: 0,
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 64,
-                      height: 40,
-                      background: "var(--bg-subtle)",
-                      border: "1px solid var(--border)",
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-
-                {/* Info */}
-                <div style={{ overflow: "hidden" }}>
-                  <div
-                    style={{
-                      fontSize: "0.9rem",
-                      fontWeight: 600,
-                      color: "var(--text)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {p.title}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.72rem",
-                      color: "var(--text-dim)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {p.redirect_url}
-                  </div>
-                </div>
-
-                {/* Date */}
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.7rem",
-                    color: "var(--text-dim)",
-                    flexShrink: 0,
-                  }}
-                >
-                  {new Date(p.created_at).toLocaleDateString("en-GB")}
-                </span>
-
-                {/* Delete */}
-                <button
-                  onClick={() => handleDelete(p.id, p.title)}
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.72rem",
-                    color: "#f87171",
-                    background: "transparent",
-                    border: "1px solid #7f1d1d",
-                    padding: "0.3rem 0.65rem",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "#7f1d1d40";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                  }}
-                >
-                  delete
-                </button>
+            {state.success && (
+              <div className="md:col-span-2 border-l-2 border-emerald-500 pl-3 font-mono text-xs text-emerald-400">
+                ✓ Project added successfully.
               </div>
-            ))}
-          </div>
-        )}
+            )}
+
+            <div className="md:col-span-2">
+              <button type="submit" disabled={isPending} className="btn-solid">
+                <span>{isPending ? "Saving…" : "Add project"}</span>
+                {!isPending && <span>→</span>}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* ── Project list ── */}
+        <div>
+          <h2 className="font-bold text-lg mb-6 flex items-center gap-3">
+            <span className="text-[#7c3aed]">≡</span> Existing projects
+          </h2>
+
+          {projects.length === 0 ? (
+            <p className="font-mono text-xs text-[#44445a] py-8 border border-dashed border-[#1e1e2a] text-center">
+              // no projects yet
+            </p>
+          ) : (
+            <div className="flex flex-col gap-px bg-[#1e1e2a] border border-[#1e1e2a]">
+              {projects.map((p) => (
+                <div key={p.id}
+                  className="grid items-center gap-4 p-4 bg-[#07070a] hover:bg-[#111118] transition-colors"
+                  style={{ gridTemplateColumns: "56px 1fr auto auto" }}
+                >
+                  {p.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.image_url} alt={p.title}
+                      className="w-14 h-9 object-cover border border-[#1e1e2a] block flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-9 bg-[#0f0f14] border border-[#1e1e2a] flex-shrink-0" />
+                  )}
+
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-[#f0f0ff] truncate">{p.title}</div>
+                    <div className="font-mono text-[0.65rem] text-[#44445a] truncate mt-0.5">
+                      {p.redirect_url}
+                    </div>
+                  </div>
+
+                  <span className="font-mono text-[0.6rem] text-[#44445a] flex-shrink-0 hidden sm:block">
+                    {new Date(p.created_at).toLocaleDateString("en-GB")}
+                  </span>
+
+                  <button
+                    onClick={() => handleDelete(p.id, p.title)}
+                    className="font-mono text-[0.65rem] text-red-400 border border-red-900/40 px-3 py-1.5 hover:bg-red-900/20 transition-colors flex-shrink-0"
+                  >
+                    delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
