@@ -22,6 +22,10 @@ export const metadata: Metadata = {
     description: "Portfolio of Drilex — building things for the web.",
     type: "website",
   },
+  icons: {
+    icon: "https://upload.drilex.cz/logo.png",
+    apple: "https://upload.drilex.cz/logo.png", 
+  },
 };
 
 export default async function RootLayout({
