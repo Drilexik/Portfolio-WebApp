@@ -64,7 +64,6 @@ export default async function HomePage() {
               src="https://upload.drilex.cz/logo.png"
               alt="Drilex logo"
               className="h-7 w-auto"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
             <span className="font-mono text-sm font-medium text-[#f0f0ff] tracking-wider">
               drilex<span className="text-[#7c3aed]">.cz</span>
@@ -332,7 +331,6 @@ export default async function HomePage() {
               src="https://upload.drilex.cz/logo.png"
               alt="Drilex"
               className="h-5 w-auto opacity-40"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
             <span className="font-mono text-xs text-[#44445a]">
               © {new Date().getFullYear()} Drilex — Filip Šimkovič
