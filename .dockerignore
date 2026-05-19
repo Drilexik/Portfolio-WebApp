@@ -1,0 +1,28 @@
+# Version control
+.git
+.gitignore
+
+# Development artifacts
+.next
+node_modules
+npm-debug.log*
+
+# Environment (never bake secrets into the image)
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+*.swp
+.vscode
+.idea
+
+# Documentation
+README.md
+*.md
+
+# Docker files (no recursion needed)
+Dockerfile
+docker-compose.yml
+.dockerignore
