@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+#
+# nginxappsetup — configure Nginx as a reverse proxy for the Drilex portfolio.
+#
+# Prompts for your domain (and a few options), writes an Nginx server block
+# that proxies the domain to the Dockerized app, and can optionally obtain a
+# free Let's Encrypt HTTPS certificate via certbot.
+#
+# Repo: https://github.com/Drilexik/Portfolio-WebApp
+#
+# Usage:
+#   ./nginxappsetup             Interactive reverse-proxy setup
+#   ./nginxappsetup -h | --help Show this help
+#
+# Run this on the same Ubuntu host where ./deploywebapp started the app.
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# ── Pretty output ────────────────────────────────────────────────
+log()  { printf '\033[1;35m▸ %s\033[0m\n' "$*"; }
+ok()   { printf '\033[1;32m✓ %s\033[0m\n' "$*"; }
+warn() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
+err()  { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; }
+hr()   { printf '\033[2m%s\033[0m\n' "────────────────────────────────────────────────────────"; }
+
+usage() { sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  "") ;;
+  *) err "Unknown option: $1"; usage; exit 1 ;;
+esac
+
+if [[ ! -t 0 ]]; then
+  err "This script is interactive — run it directly in a terminal (./nginxappsetup)."
+  exit 1
+fi
+
+# Privileged commands need root; fall back to sudo when not running as root.
+if [[ "$(id -u)" -eq 0 ]]; then SUDO=""; else SUDO="sudo"; fi
+
+# ── 0. Ensure Nginx is installed ─────────────────────────────────
+hr; log "Checking for Nginx…"; hr
+if ! command -v nginx >/dev/null 2>&1; then
+  warn "Nginx is not installed."
+  read -rp "  Install it now (apt-get install nginx)? [Y/n]: " yn
+  if [[ "${yn,,}" == "n" || "${yn,,}" == "no" ]]; then
+    err "Nginx is required. Install it and re-run ./nginxappsetup"
+    exit 1
+  fi
+  $SUDO apt-get update -y
+  $SUDO apt-get install -y nginx
+fi
+ok "Nginx is installed."
+
+# ── 1. Gather settings ───────────────────────────────────────────
+hr; log "Reverse-proxy configuration"; hr
+
+# Domain (required, lightly validated).
+while :; do
+  read -rp "  Domain name (e.g. drilex.cz): " DOMAIN
+  DOMAIN="${DOMAIN#http://}"; DOMAIN="${DOMAIN#https://}"; DOMAIN="${DOMAIN%%/*}"
+  if [[ "$DOMAIN" =~ ^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then break; fi
+  warn "  that doesn't look like a valid domain — try again"
+done
+
+# Include the www. variant?
+read -rp "  Also serve www.${DOMAIN}? [Y/n]: " yn
+if [[ "${yn,,}" == "n" || "${yn,,}" == "no" ]]; then
+  SERVER_NAMES="$DOMAIN"
+else
+  SERVER_NAMES="$DOMAIN www.$DOMAIN"
+fi
+
+# App port — default to PORT from .env, else 5000.
+DEFAULT_PORT="5000"
+if [[ -f .env ]]; then
+  ENV_PORT="$( (grep -E '^PORT=' .env || true) | cut -d= -f2- | tr -d '[:space:]' )"
+  [[ -n "$ENV_PORT" ]] && DEFAULT_PORT="$ENV_PORT"
+fi
+read -rp "  Port the app listens on [${DEFAULT_PORT}]: " APP_PORT
+APP_PORT="${APP_PORT:-$DEFAULT_PORT}"
+
+# HTTPS via Let's Encrypt?
+read -rp "  Set up free HTTPS with Let's Encrypt (certbot) now? [Y/n]: " yn
+if [[ "${yn,,}" == "n" || "${yn,,}" == "no" ]]; then
+  WANT_TLS=0
+else
+  WANT_TLS=1
+  read -rp "  Email for Let's Encrypt renewal notices: " LE_EMAIL
+fi
+
+# Warn if nothing is listening on the chosen port yet.
+if command -v ss >/dev/null 2>&1 && ! ss -ltn 2>/dev/null | grep -q ":${APP_PORT}\b"; then
+  warn "Nothing is currently listening on port ${APP_PORT}."
+  warn "Make sure the app is running (./deploywebapp) — the proxy will 502 until it is."
+fi
+
+CONF_PATH="/etc/nginx/sites-available/${DOMAIN}.conf"
+LINK_PATH="/etc/nginx/sites-enabled/${DOMAIN}.conf"
+
+if [[ -e "$CONF_PATH" ]]; then
+  warn "A config already exists at ${CONF_PATH}"
+  read -rp "  Overwrite it? [y/N]: " yn
+  [[ "${yn,,}" == "y" || "${yn,,}" == "yes" ]] || { err "Aborted."; exit 1; }
+fi
+
+# ── 2. Write the server block ────────────────────────────────────
+hr; log "Writing ${CONF_PATH}…"; hr
+
+# Note: nginx variables ($host, $scheme, …) are backslash-escaped so the shell
+# leaves them for nginx; ${DOMAIN}/${APP_PORT}/${SERVER_NAMES} do expand.
+$SUDO tee "$CONF_PATH" >/dev/null <<EOF
+# Managed by ./nginxappsetup — reverse proxy for the Drilex portfolio app.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${SERVER_NAMES};
+
+    # Image uploads: the app caps files at 8 MB (Next bodySizeLimit is 10 MB).
+    # Nginx defaults to 1 MB, which would break uploads — raise it to match.
+    client_max_body_size 12M;
+
+    location / {
+        proxy_pass http://127.0.0.1:${APP_PORT};
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              \$host;
+        proxy_set_header X-Real-IP         \$remote_addr;
+        proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host  \$host;
+
+        # WebSocket / upgrade support
+        proxy_set_header Upgrade    \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_read_timeout 60s;
+        proxy_redirect off;
+    }
+}
+EOF
+ok "Server block written."
+
+# Enable the site (sites-enabled symlink).
+$SUDO ln -sfn "$CONF_PATH" "$LINK_PATH"
+ok "Site enabled."
+
+# ── 3. Test & reload ─────────────────────────────────────────────
+hr; log "Validating Nginx configuration…"; hr
+if ! $SUDO nginx -t; then
+  err "Nginx config test failed — review the output above. The new site was not loaded."
+  exit 1
+fi
+$SUDO systemctl reload nginx 2>/dev/null || $SUDO nginx -s reload
+ok "Nginx reloaded."
+
+# Open the firewall for HTTP/HTTPS if ufw is active.
+if command -v ufw >/dev/null 2>&1 && $SUDO ufw status 2>/dev/null | grep -q "Status: active"; then
+  log "Allowing HTTP/HTTPS through ufw…"
+  $SUDO ufw allow 'Nginx Full' >/dev/null 2>&1 || true
+fi
+
+# ── 4. HTTPS (optional) ──────────────────────────────────────────
+if [[ "$WANT_TLS" -eq 1 ]]; then
+  hr; log "Obtaining a Let's Encrypt certificate with certbot…"; hr
+  warn "This requires ${DOMAIN} to already point (DNS A/AAAA record) at this server,"
+  warn "and ports 80/443 to be reachable from the internet."
+
+  if ! command -v certbot >/dev/null 2>&1; then
+    log "Installing certbot…"
+    $SUDO apt-get update -y
+    $SUDO apt-get install -y certbot python3-certbot-nginx
+  fi
+
+  CERTBOT_DOMAINS=(-d "$DOMAIN")
+  [[ "$SERVER_NAMES" == *"www.$DOMAIN"* ]] && CERTBOT_DOMAINS+=(-d "www.$DOMAIN")
+
+  if $SUDO certbot --nginx "${CERTBOT_DOMAINS[@]}" \
+        --non-interactive --agree-tos -m "$LE_EMAIL" --redirect; then
+    ok "HTTPS is set up and HTTP now redirects to HTTPS."
+    SCHEME="https"
+  else
+    warn "certbot failed (often a DNS or firewall issue). Your site still works over HTTP."
+    warn "Once DNS is correct, re-run:  sudo certbot --nginx -d ${DOMAIN}"
+    SCHEME="http"
+  fi
+else
+  SCHEME="http"
+fi
+
+# ── 5. Summary ───────────────────────────────────────────────────
+hr; ok "Nginx reverse proxy is live."; hr
+log "Site:        ${SCHEME}://${DOMAIN}"
+log "Admin panel: ${SCHEME}://${DOMAIN}/admin"
+log "Proxying to: http://127.0.0.1:${APP_PORT}"
+echo
+log "Config file:  ${CONF_PATH}"
+[[ "$WANT_TLS" -eq 1 && "$SCHEME" == "http" ]] && \
+  warn "HTTPS was requested but not completed — see the certbot note above."
