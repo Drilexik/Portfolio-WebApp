@@ -21,7 +21,7 @@ Production-ready Next.js portfolio with PostgreSQL, raw SQL, and Docker — no O
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/drilexik/portfolio
+git clone https://github.com/drilexik/Portfolio-WebApp
 cd drilex-portfolio
 npm install
 ```
