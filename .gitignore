@@ -11,11 +11,11 @@ out/
 build/
 
 # Environment files — NEVER commit secrets
+# Ignore every .env variant (.env, .env.local, .env.production, .env.vps, …)
+# but keep the committed template.
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
 # OS
 .DS_Store

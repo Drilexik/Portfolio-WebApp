@@ -139,8 +139,11 @@ Navigate to `/admin` — this URL is **not linked anywhere** in the public site.
 - Max upload size: 8 MB (also set via `serverActions.bodySizeLimit` in `next.config.ts`)
 
 ### Auth
-- Simple password comparison against `ADMIN_PASSWORD` env variable
-- On success, an httpOnly session cookie is set (8-hour TTL)
+- Constant-time password comparison against the `ADMIN_PASSWORD` env variable
+- On success, an httpOnly session cookie holding an **HMAC-signed, expiring token**
+  is set (8-hour TTL) — the cookie cannot be forged without `SESSION_SECRET`
+- Set `SESSION_SECRET` to a long random string in production (falls back to
+  `ADMIN_PASSWORD` if unset)
 - All Server Actions re-check auth before executing
 
 ### Ports

@@ -1,0 +1,4 @@
+# Keep shell scripts as LF so they run on Linux even when authored on Windows.
+# (CRLF line endings break the shebang: "bad interpreter: /bin/bash^M".)
+redeploywebapp text eol=lf
+*.sh           text eol=lf

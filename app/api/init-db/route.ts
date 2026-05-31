@@ -13,7 +13,8 @@ export async function GET(): Promise<NextResponse> {
     await initSchema();
     return NextResponse.json({ ok: true });
   } catch (err) {
+    // Log the real error server-side; never leak DB internals to the client.
     console.error("[init-db] Schema initialisation failed:", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Schema initialisation failed." }, { status: 500 });
   }
 }
