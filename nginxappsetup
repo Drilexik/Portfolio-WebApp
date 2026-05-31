@@ -176,16 +176,35 @@ if [[ "$WANT_TLS" -eq 1 ]]; then
     $SUDO apt-get install -y certbot python3-certbot-nginx
   fi
 
-  CERTBOT_DOMAINS=(-d "$DOMAIN")
-  [[ "$SERVER_NAMES" == *"www.$DOMAIN"* ]] && CERTBOT_DOMAINS+=(-d "www.$DOMAIN")
+  # --expand: silently expand/replace any existing cert that already covers a
+  # subset of these names (e.g. an earlier apex-only cert), so non-interactive
+  # runs don't stall asking to confirm.
+  run_certbot() {
+    $SUDO certbot --nginx "$@" \
+      --non-interactive --agree-tos -m "$LE_EMAIL" --redirect --expand
+  }
 
-  if $SUDO certbot --nginx "${CERTBOT_DOMAINS[@]}" \
-        --non-interactive --agree-tos -m "$LE_EMAIL" --redirect; then
+  HAS_WWW=0
+  CERTBOT_DOMAINS=(-d "$DOMAIN")
+  if [[ "$SERVER_NAMES" == *"www.$DOMAIN"* ]]; then
+    CERTBOT_DOMAINS+=(-d "www.$DOMAIN")
+    HAS_WWW=1
+  fi
+
+  if run_certbot "${CERTBOT_DOMAINS[@]}"; then
     ok "HTTPS is set up and HTTP now redirects to HTTPS."
     SCHEME="https"
+  elif [[ "$HAS_WWW" -eq 1 ]] && run_certbot -d "$DOMAIN"; then
+    # www couldn't validate (usually its DNS differs from the apex), but the
+    # apex did — issue an apex-only cert so the site still gets HTTPS.
+    SCHEME="https"
+    warn "Could not validate www.${DOMAIN}, so HTTPS was issued for ${DOMAIN} only."
+    warn "Point www at this server (CNAME www -> ${DOMAIN}, remove any stray AAAA), then run:"
+    warn "  sudo certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} --expand"
   else
-    warn "certbot failed (often a DNS or firewall issue). Your site still works over HTTP."
-    warn "Once DNS is correct, re-run:  sudo certbot --nginx -d ${DOMAIN}"
+    warn "certbot failed (usually DNS not pointed here, or ports 80/443 blocked)."
+    warn "Your site still works over HTTP. Once DNS/firewall are correct, re-run:"
+    warn "  sudo certbot --nginx -d ${DOMAIN}$([[ $HAS_WWW -eq 1 ]] && echo " -d www.${DOMAIN}") --expand"
     SCHEME="http"
   fi
 else
