@@ -9,10 +9,14 @@ function loadMatomo(siteId: string) {
   if (w.__matomoLoaded) return;
   w.__matomoLoaded = true;
   const _paq = (w._paq = w._paq || []);
-  _paq.push(["trackPageView"]);
-  _paq.push(["enableLinkTracking"]);
   _paq.push(["setTrackerUrl", MATOMO_URL + "matomo.php"]);
   _paq.push(["setSiteId", siteId]);
+  // enable all available (free) tracking
+  _paq.push(["enableLinkTracking"]);
+  _paq.push(["enableHeartBeatTimer"]);
+  _paq.push(["enableJSErrorTracking"]);
+  _paq.push(["trackVisibleContentImpressions"]);
+  _paq.push(["trackPageView"]);
   const g = document.createElement("script");
   g.async = true;
   g.src = MATOMO_URL + "matomo.js";
@@ -26,8 +30,10 @@ function loadOwa(siteId: string) {
   w.owa_baseUrl = OWA_URL;
   const owa_cmds = (w.owa_cmds = w.owa_cmds || []);
   owa_cmds.push(["setSiteId", siteId]);
+  // enable all OWA tracking (incl. clicks + dom stream for heatmaps)
   owa_cmds.push(["trackPageView"]);
   owa_cmds.push(["trackClicks"]);
+  owa_cmds.push(["trackDomStream"]);
   const s = document.createElement("script");
   s.async = true;
   s.src = OWA_URL + "modules/base/js/owa.tracker-combined-min.js";
