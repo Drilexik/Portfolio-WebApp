@@ -336,7 +336,7 @@ export default async function HomePage() {
               © {new Date().getFullYear()} Drilex — Filip Šimkovič
             </span>
           </div>
-          <span className="font-mono text-xs text-[#44445a]">Built with Next.js + PostgreSQL</span>
+          <span className="font-mono text-xs text-[#44445a]">Built with Next.js + PostgreSQL · <a href="/gdpr" className="underline hover:text-[#7c3aed]">GDPR</a></span>
         </div>
       </footer>
 

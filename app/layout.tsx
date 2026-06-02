@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { initSchema } from "@/lib/db";
+import CookieConsent from "./components/CookieConsent";
 
 async function ensureSchema() {
   if (process.env.BUILDING === "true") return;
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "https://upload.drilex.cz/logo.png",
-    apple: "https://upload.drilex.cz/logo.png", 
+    apple: "https://upload.drilex.cz/logo.png",
   },
 };
 
@@ -44,7 +45,10 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <CookieConsent matomoSiteId="1" owaSiteId="970a1f714c086d7a871c6389fdfd95e1" />
+      </body>
     </html>
   );
 }
