@@ -47,7 +47,7 @@ export default async function RootLayout({
       </head>
       <body>
         {children}
-        <CookieConsent matomoSiteId="1" owaSiteId="970a1f714c086d7a871c6389fdfd95e1" />
+        <CookieConsent matomoSiteId="1" owaSiteId="970a1f714c086d7a871c6389fdfd95e1" clarityProjectId="x1nljdnsql" />
       </body>
     </html>
   );
